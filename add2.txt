@@ -1,0 +1,297 @@
+# Notion埋め込み制約対応 追加要件定義書
+
+## 1. 問題定義
+
+### 1.1 Notion埋め込み制約の詳細
+- **固定サイズ仕様**: Notionはiframeのwidth/heightを固定値として扱う
+- **縮小表示問題**: モバイルでも固定サイズを維持しようとして全体が縮小される
+- **操作性悪化**: 縮小により文字・ボタンが物理的に小さくなり操作困難
+
+### 1.2 具体的な影響
+```
+デスクトップ Notion: 700px × 250px → 正常表示
+モバイル Notion: 700px × 250px → 画面幅320pxに縮小表示（45%スケール）
+結果: 48pxの時間表示 → 実質21px、操作不可能
+```
+
+### 1.3 対応の必要性
+- **ユーザビリティ**: モバイルNotionでの実用性確保
+- **アクセシビリティ**: 視認性・操作性の最低基準維持
+- **製品価値**: 全環境での一貫した体験提供
+
+## 2. 技術的解決策
+
+### 2.1 多層防御アプローチ
+
+#### 2.1.1 第1層: 動的検出システム
+```javascript
+// Notion埋め込み環境の自動検出
+function detectNotionEnvironment() {
+    const container = document.querySelector('.stopwatch-container');
+    const containerWidth = container.offsetWidth;
+    const windowWidth = window.innerWidth;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    
+    // 縮小表示パターンの検出
+    const isNotionShrunk = (
+        containerWidth < 500 && 
+        windowWidth < 600 && 
+        containerWidth / windowWidth < 0.8
+    );
+    
+    return {
+        isNotionShrunk,
+        shrinkRatio: containerWidth / 700, // 元サイズとの比率
+        environment: isNotionShrunk ? 'notion-mobile' : 'normal'
+    };
+}
+```
+
+#### 2.1.2 第2層: 適応的スタイリング
+```css
+/* 基本レスポンシブ（通常環境） */
+@media (max-width: 600px) {
+    #time { font-size: 48px; }
+    .btn { font-size: 20px; padding: 16px 24px; }
+}
+
+/* Notion縮小環境用強制調整 */
+.notion-shrunk #time {
+    font-size: 72px !important;  /* 1.5倍補正 */
+    line-height: 0.9 !important;
+    letter-spacing: 0 !important;
+}
+
+.notion-shrunk .btn {
+    font-size: 28px !important;  /* 1.4倍補正 */
+    padding: 20px 32px !important;
+    min-height: 72px !important;
+}
+
+.notion-shrunk .control-buttons {
+    gap: 8px !important; /* 間隔調整 */
+}
+```
+
+#### 2.1.3 第3層: 全体スケール調整
+```css
+.notion-shrunk .stopwatch-container {
+    transform: scale(1.15);
+    transform-origin: top center;
+    margin: 0 auto;
+    overflow: visible;
+}
+```
+
+### 2.2 マルチバージョン対応
+
+#### 2.2.1 提供バージョン仕様
+| バージョン | サイズ | 想定用途 | URL例 |
+|-----------|--------|---------|-------|
+| Desktop | 700×250px | PC Notion | `/stopwatch/` |
+| Mobile-L | 350×500px | スマホ Notion | `/stopwatch/mobile-l/` |
+| Mobile-S | 280×400px | 小画面 Notion | `/stopwatch/mobile-s/` |
+| Compact | 250×300px | 極小埋め込み | `/stopwatch/compact/` |
+
+#### 2.2.2 自動リダイレクト機能
+```javascript
+// URL パラメータによる自動最適化
+function autoOptimizeForDevice() {
+    const params = new URLSearchParams(window.location.search);
+    const forceSize = params.get('size');
+    
+    if (!forceSize) {
+        const optimal = detectOptimalSize();
+        if (optimal !== 'desktop') {
+            window.location.href = `${window.location.pathname}?size=${optimal}`;
+        }
+    }
+}
+
+function detectOptimalSize() {
+    const width = window.innerWidth;
+    if (width < 320) return 'compact';
+    if (width < 400) return 'mobile-s';
+    if (width < 600) return 'mobile-l';
+    return 'desktop';
+}
+```
+
+## 3. 実装要件
+
+### 3.1 検出システム要件
+
+#### 3.1.1 環境検出精度
+- **検出率**: 95%以上の正確性
+- **誤検出率**: 5%以下
+- **検出時間**: ページ読み込み後500ms以内
+
+#### 3.1.2 検出トリガー
+- **初期ロード**: window.load イベント
+- **リサイズ**: window.resize イベント（デバウンス200ms）
+- **向き変更**: orientationchange イベント
+
+### 3.2 スタイル調整要件
+
+#### 3.2.1 縮小補正倍率
+| 要素 | 通常サイズ | 縮小検出時 | 補正倍率 |
+|------|-----------|----------|---------|
+| 時間表示 | 48px | 72px | 1.5x |
+| Startボタン | 20px | 28px | 1.4x |
+| その他ボタン | 16px | 22px | 1.375x |
+| データリスト | 16px | 20px | 1.25x |
+
+#### 3.2.2 レイアウト調整
+- **ボタン間隔**: 12px → 8px（スペース節約）
+- **余白**: 20px → 16px（コンパクト化）
+- **全体スケール**: 1.15倍（視認性確保）
+
+### 3.3 フォールバック要件
+
+#### 3.3.1 JavaScript無効時
+```css
+/* noscript 環境用 */
+.no-js .stopwatch-container {
+    transform: scale(1.3);
+    transform-origin: top center;
+}
+
+.no-js #time { font-size: 60px; }
+.no-js .btn { font-size: 24px; }
+```
+
+#### 3.3.2 古いブラウザ対応
+- **IE11**: 基本機能のみ（検出なし）
+- **Safari 12**: transform対応
+- **Chrome 70+**: 全機能対応
+
+## 4. パフォーマンス要件
+
+### 4.1 検出処理性能
+- **実行時間**: 10ms以下
+- **メモリ使用**: 1KB以下の追加
+- **CPU負荷**: 最小化（デバウンス必須）
+
+### 4.2 描画パフォーマンス
+- **リフロー**: 最大1回（初期検出時のみ）
+- **アニメーション**: GPU加速対応
+- **FPS**: 60fps維持
+
+## 5. ユーザー体験要件
+
+### 5.1 シームレス対応
+- **切り替え**: ユーザーが意識しない自然な調整
+- **一貫性**: 機能・操作性の完全保持
+- **安定性**: 誤検出による表示崩れなし
+
+### 5.2 複数環境対応
+- **Notion Web**: ブラウザ版対応
+- **Notion App**: アプリ版対応  
+- **Notion Mobile**: モバイルアプリ対応
+
+## 6. 開発・運用要件
+
+### 6.1 デバッグ支援
+
+#### 6.1.1 開発者モード
+```javascript
+// URL パラメータ ?debug=1 で有効化
+if (new URLSearchParams(window.location.search).get('debug')) {
+    const info = detectNotionEnvironment();
+    console.log('Notion Environment:', info);
+    
+    // 画面上にデバッグ情報表示
+    showDebugOverlay(info);
+}
+```
+
+#### 6.1.2 ログ出力
+- **検出結果**: 環境・倍率・適用スタイル
+- **パフォーマンス**: 検出時間・処理時間
+- **エラー**: 異常値・フォールバック実行
+
+### 6.2 A/Bテスト対応
+```javascript
+// 複数の補正アルゴリズムテスト
+const correctionAlgorithm = Math.random() < 0.5 ? 'conservative' : 'aggressive';
+applyCorrectionStrategy(correctionAlgorithm);
+```
+
+## 7. 受け入れ基準
+
+### 7.1 検出精度テスト
+- [ ] PC Notionで正常検出（false negative < 5%）
+- [ ] モバイル Notionで縮小検出（true positive > 95%）
+- [ ] 通常環境で非検出（false positive < 5%）
+- [ ] 検出時間が500ms以内
+
+### 7.2 視認性テスト
+- [ ] 縮小環境で時間表示が読める（最小実質40px相当）
+- [ ] 縮小環境でボタンが押せる（最小実質44px相当）
+- [ ] 全体レイアウトが崩れない
+- [ ] スクロールバーが適切に表示される
+
+### 7.3 操作性テスト
+- [ ] 縮小環境でタッチ操作が正確
+- [ ] ボタン誤タップが発生しない
+- [ ] ダブルタップズームが無効
+- [ ] スクロールが滑らか
+
+### 7.4 互換性テスト
+- [ ] Notion Web版で正常動作
+- [ ] Notion Desktop版で正常動作
+- [ ] Notion Mobile版で正常動作
+- [ ] 主要ブラウザで正常動作
+
+### 7.5 パフォーマンステスト
+- [ ] 検出処理が10ms以下
+- [ ] 初期表示が1秒以内
+- [ ] リサイズ処理が100ms以内
+- [ ] メモリリークが発生しない
+
+### 7.6 デバイス別テスト
+| デバイス | 画面幅 | 期待動作 | 検証項目 |
+|---------|--------|---------|---------|
+| iPhone SE | 375px | 縮小検出 | 操作可能性 |
+| iPhone 12 | 390px | 縮小検出 | 視認性 |
+| iPad mini | 768px | 通常表示 | レイアウト |
+| Galaxy S21 | 360px | 縮小検出 | タッチ精度 |
+
+## 8. 実装ロードマップ
+
+### Phase 1: 基盤実装（2日）
+- 環境検出システム構築
+- 基本的な CSS 強制調整
+- デバッグ機能実装
+
+### Phase 2: 最適化（2日）
+- 検出精度向上
+- パフォーマンス最適化
+- 複数バージョン対応
+
+### Phase 3: 検証・調整（1日）
+- 実環境テスト
+- 微調整・バグ修正
+- ドキュメント整備
+
+**総開発期間**: 5日
+**リリース前テスト**: 3日
+
+## 9. 運用・保守
+
+### 9.1 監視項目
+- **検出精度**: 月次レポート
+- **パフォーマンス**: 週次チェック
+- **エラー率**: 日次監視
+
+### 9.2 更新計画
+- **Notion仕様変更**: 四半期チェック
+- **ブラウザ対応**: 半年毎更新
+- **アルゴリズム改善**: 年次見直し
+
+---
+
+**文書バージョン**: 1.0  
+**作成日**: 2025年6月17日  
+**対象**: Notion埋め込み制約対応  
+**前提**: 基本ウィジェット実装完了後の追加開発

@@ -407,6 +407,56 @@
             }
         }
         
+        /* Notion縮小環境用強制調整 */
+        .notion-shrunk #time {
+            font-size: 72px !important;  /* 1.5倍補正 */
+            line-height: 0.9 !important;
+            letter-spacing: 0 !important;
+            margin-bottom: 20px !important;
+        }
+        
+        .notion-shrunk .btn {
+            font-size: 28px !important;  /* 1.4倍補正 */
+            padding: 20px 32px !important;
+            min-height: 72px !important;
+        }
+        
+        .notion-shrunk #startStopBtn {
+            font-size: 32px !important;  /* 1.6倍補正 */
+            min-height: 140px !important;
+        }
+        
+        .notion-shrunk #lapBtn,
+        .notion-shrunk #resetBtn {
+            font-size: 24px !important;  /* 1.5倍補正 */
+            min-height: 64px !important;
+        }
+        
+        .notion-shrunk .control-buttons {
+            gap: 8px !important; /* 間隔調整 */
+            max-width: 320px !important;
+            height: 140px !important;
+        }
+        
+        .notion-shrunk .data-list {
+            font-size: 20px !important;  /* 1.25倍補正 */
+        }
+        
+        .notion-shrunk .data-display h3 {
+            font-size: 20px !important;  /* 1.25倍補正 */
+        }
+        
+        /* 全体スケール調整 */
+        .notion-shrunk {
+            transform: scale(1.15);
+            transform-origin: top center;
+            margin: 0 auto;
+        }
+        
+        /* デバッグモード表示時の調整 */
+        #debug-overlay {
+            user-select: text;
+        }
     </style>
 </head>
 <body>
@@ -594,13 +644,86 @@
         // 初期化
         updateDisplay();
         
-        // レスポンシブレイアウト対応（Notion埋め込み対策）
-        function checkViewportWidth() {
-            const viewportWidth = window.innerWidth;
+        // Notion埋め込み環境の検出と対応
+        function detectNotionEnvironment() {
             const container = document.querySelector('.stopwatch-container');
+            const containerWidth = container.offsetWidth;
+            const windowWidth = window.innerWidth;
+            const devicePixelRatio = window.devicePixelRatio || 1;
             
-            // 実際の表示幅が650px未満の場合は強制的にモバイルレイアウトを適用
-            if (viewportWidth < 650) {
+            // 縮小表示パターンの検出
+            const isNotionShrunk = (
+                containerWidth < 500 && 
+                windowWidth < 600 && 
+                containerWidth / windowWidth < 0.8
+            );
+            
+            // デバッグモード
+            const urlParams = new URLSearchParams(window.location.search);
+            const isDebug = urlParams.get('debug') === '1';
+            
+            const environment = {
+                isNotionShrunk,
+                shrinkRatio: containerWidth / 700, // 元サイズとの比率
+                environment: isNotionShrunk ? 'notion-mobile' : 'normal',
+                containerWidth,
+                windowWidth,
+                devicePixelRatio
+            };
+            
+            if (isDebug) {
+                console.log('Notion Environment Detection:', environment);
+                showDebugOverlay(environment);
+            }
+            
+            return environment;
+        }
+        
+        // デバッグ情報の表示
+        function showDebugOverlay(info) {
+            const existing = document.getElementById('debug-overlay');
+            if (existing) existing.remove();
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'debug-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 10px;
+                font-size: 12px;
+                font-family: monospace;
+                z-index: 9999;
+                border-radius: 4px;
+            `;
+            overlay.innerHTML = `
+                <div>Environment: ${info.environment}</div>
+                <div>Container: ${info.containerWidth}px</div>
+                <div>Window: ${info.windowWidth}px</div>
+                <div>Shrink Ratio: ${info.shrinkRatio.toFixed(2)}</div>
+                <div>DPR: ${info.devicePixelRatio}</div>
+            `;
+            document.body.appendChild(overlay);
+        }
+        
+        // レスポンシブレイアウト対応（Notion埋め込み対策）
+        function applyResponsiveLayout() {
+            const container = document.querySelector('.stopwatch-container');
+            const env = detectNotionEnvironment();
+            
+            // 既存のクラスをクリア
+            container.classList.remove('notion-shrunk');
+            
+            // 縮小環境の場合、専用クラスを適用
+            if (env.isNotionShrunk) {
+                container.classList.add('notion-shrunk');
+            }
+            
+            // 通常のレスポンシブ対応（650px未満）
+            if (env.windowWidth < 650 && !env.isNotionShrunk) {
+                // 既存のモバイルレイアウト適用
                 container.style.flexDirection = 'column';
                 container.style.height = 'auto';
                 container.style.minHeight = '520px';
@@ -623,13 +746,18 @@
         }
         
         // 初期チェック
-        checkViewportWidth();
+        applyResponsiveLayout();
         
         // リサイズ時の再チェック
         let resizeTimer;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(checkViewportWidth, 100);
+            resizeTimer = setTimeout(applyResponsiveLayout, 100);
+        });
+        
+        // 向き変更時の対応
+        window.addEventListener('orientationchange', () => {
+            setTimeout(applyResponsiveLayout, 300);
         });
         
         // Notion埋め込み検出（iframeで実行されている場合）
@@ -637,7 +765,7 @@
             // iframe内で実行されている場合の追加対策
             document.body.style.margin = '0';
             document.body.style.padding = '5px';
-            checkViewportWidth();
+            applyResponsiveLayout();
         }
     </script>
 </body>
