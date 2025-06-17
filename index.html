@@ -94,6 +94,12 @@
             font-weight: 200;
         }
         
+        .time-hours {
+            font-size: 48px;
+            letter-spacing: 1px;
+            font-weight: 300;
+        }
+        
         /* コントロールボタン - モバイルファースト（Grid） */
         .control-buttons {
             display: grid;
@@ -406,6 +412,10 @@
                 font-size: 28px;
             }
             
+            .time-hours {
+                font-size: 44px;
+            }
+            
             h1 {
                 font-size: 16px;
                 top: 18px;
@@ -451,6 +461,10 @@
                 font-size: 26px;
             }
             
+            .time-hours {
+                font-size: 40px;
+            }
+            
             h1 {
                 font-size: 14px;
                 top: 16px;
@@ -487,6 +501,10 @@
         
         .notion-shrunk .time-ms {
             font-size: 48px !important;  /* 1.5倍補正 */
+        }
+        
+        .notion-shrunk .time-hours {
+            font-size: 72px !important;  /* 1.5倍補正 */
         }
         
         .notion-shrunk .btn {
@@ -540,9 +558,7 @@
             <h1>Stopwatch</h1>
             <!-- 時間表示 -->
             <div class="time-display">
-                <span id="time">
-                    <span class="time-main">00:00</span><span class="time-ms">.00</span>
-                </span>
+                <span id="time">00:00.00</span>
             </div>
             
             <!-- 操作ボタン -->
@@ -592,23 +608,43 @@
         let lapTimes = [];
         let history = [];
         
-        // 時間を MM:SS.mm 形式にフォーマット
+        // 時間を MM:SS.mm または Hh MM:SS.mm 形式にフォーマット
         function formatTime(milliseconds) {
             const totalSeconds = Math.floor(milliseconds / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
             const ms = Math.floor((milliseconds % 1000) / 10);
             
-            return {
-                main: `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
-                ms: `.${ms.toString().padStart(2, '0')}`
-            };
+            // 60分（3600秒）以上の場合
+            if (totalSeconds >= 3600) {
+                const hours = Math.floor(totalSeconds / 3600);
+                const remainingMinutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                
+                return {
+                    hours: `${hours}h `,
+                    main: `${remainingMinutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
+                    ms: `.${ms.toString().padStart(2, '0')}`
+                };
+            } else {
+                // 60分未満の場合（従来通り）
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                
+                return {
+                    hours: '',
+                    main: `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
+                    ms: `.${ms.toString().padStart(2, '0')}`
+                };
+            }
         }
         
         // 時間表示を更新
         function updateDisplay() {
             const time = formatTime(elapsedTime);
-            timeDisplay.innerHTML = `<span class="time-main">${time.main}</span><span class="time-ms">${time.ms}</span>`;
+            if (time.hours) {
+                timeDisplay.innerHTML = `<span class="time-hours">${time.hours}</span><span class="time-main">${time.main}</span><span class="time-ms">${time.ms}</span>`;
+            } else {
+                timeDisplay.innerHTML = `<span class="time-main">${time.main}</span><span class="time-ms">${time.ms}</span>`;
+            }
         }
         
         // タイマーを開始
@@ -670,9 +706,10 @@
                 const lapNumber = lapTimes.length - index;
                 const li = document.createElement('li');
                 const formattedTime = formatTime(time);
+                const timeStr = formattedTime.hours + formattedTime.main + formattedTime.ms;
                 li.innerHTML = `
                     <span class="lap-number">Lap ${lapNumber}</span>
-                    <span>${formattedTime.main}${formattedTime.ms}</span>
+                    <span>${timeStr}</span>
                 `;
                 lapList.appendChild(li);
             });
@@ -698,7 +735,7 @@
             displayHistory.forEach((item) => {
                 const li = document.createElement('li');
                 const formattedTime = formatTime(item.time);
-                const timeStr = formattedTime.main + formattedTime.ms;
+                const timeStr = formattedTime.hours + formattedTime.main + formattedTime.ms;
                 const lapInfo = item.lapCount > 0 ? ` (${item.lapCount} laps)` : '';
                 li.innerHTML = `
                     <span>${timeStr}${lapInfo}</span>
