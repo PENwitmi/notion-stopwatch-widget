@@ -76,13 +76,22 @@
         
         #time {
             font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
-            font-size: 48px;
             font-weight: 300;
             color: #1a365d;
-            letter-spacing: 1px;
             line-height: 1.1;
             margin-bottom: 28px;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .time-main {
+            font-size: 48px;
+            letter-spacing: 1px;
+        }
+        
+        .time-ms {
+            font-size: 32px;
+            opacity: 0.6;
+            font-weight: 200;
         }
         
         /* コントロールボタン - モバイルファースト（Grid） */
@@ -386,8 +395,15 @@
             }
             
             #time {
-                font-size: 44px;
                 margin-bottom: 24px;
+            }
+            
+            .time-main {
+                font-size: 44px;
+            }
+            
+            .time-ms {
+                font-size: 28px;
             }
             
             h1 {
@@ -423,9 +439,16 @@
             }
             
             #time {
-                font-size: 40px;
                 line-height: 1.2;
                 margin-bottom: 20px;
+            }
+            
+            .time-main {
+                font-size: 40px;
+            }
+            
+            .time-ms {
+                font-size: 26px;
             }
             
             h1 {
@@ -453,10 +476,17 @@
         }
         
         .notion-shrunk #time {
-            font-size: 72px !important;  /* 1.5倍補正 */
             line-height: 0.9 !important;
-            letter-spacing: 0 !important;
             margin-bottom: 20px !important;
+        }
+        
+        .notion-shrunk .time-main {
+            font-size: 72px !important;  /* 1.5倍補正 */
+            letter-spacing: 0 !important;
+        }
+        
+        .notion-shrunk .time-ms {
+            font-size: 48px !important;  /* 1.5倍補正 */
         }
         
         .notion-shrunk .btn {
@@ -510,7 +540,9 @@
             <h1>Stopwatch</h1>
             <!-- 時間表示 -->
             <div class="time-display">
-                <span id="time">00:00.00</span>
+                <span id="time">
+                    <span class="time-main">00:00</span><span class="time-ms">.00</span>
+                </span>
             </div>
             
             <!-- 操作ボタン -->
@@ -567,12 +599,16 @@
             const seconds = totalSeconds % 60;
             const ms = Math.floor((milliseconds % 1000) / 10);
             
-            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+            return {
+                main: `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
+                ms: `.${ms.toString().padStart(2, '0')}`
+            };
         }
         
         // 時間表示を更新
         function updateDisplay() {
-            timeDisplay.textContent = formatTime(elapsedTime);
+            const time = formatTime(elapsedTime);
+            timeDisplay.innerHTML = `<span class="time-main">${time.main}</span><span class="time-ms">${time.ms}</span>`;
         }
         
         // タイマーを開始
@@ -633,9 +669,10 @@
             displayLaps.forEach((time, index) => {
                 const lapNumber = lapTimes.length - index;
                 const li = document.createElement('li');
+                const formattedTime = formatTime(time);
                 li.innerHTML = `
                     <span class="lap-number">Lap ${lapNumber}</span>
-                    <span>${formatTime(time)}</span>
+                    <span>${formattedTime.main}${formattedTime.ms}</span>
                 `;
                 lapList.appendChild(li);
             });
@@ -660,7 +697,8 @@
             
             displayHistory.forEach((item) => {
                 const li = document.createElement('li');
-                const timeStr = formatTime(item.time);
+                const formattedTime = formatTime(item.time);
+                const timeStr = formattedTime.main + formattedTime.ms;
                 const lapInfo = item.lapCount > 0 ? ` (${item.lapCount} laps)` : '';
                 li.innerHTML = `
                     <span>${timeStr}${lapInfo}</span>
