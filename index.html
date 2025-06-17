@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notion Stopwatch Widget</title>
+    <style>
+        /* リセット & 基本設定 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f7fafc;
+            color: #2d3748;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* メインコンテナ */
+        .stopwatch-container {
+            width: 100%;
+            max-width: 700px;
+            height: 250px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* メイン表示エリア（60%） */
+        .main-display {
+            width: 60%;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #f7fafc 0%, #e2e8f0 100%);
+        }
+        
+        /* 時間表示 */
+        .time-display {
+            margin-bottom: 30px;
+        }
+        
+        #time {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+            font-size: 48px;
+            font-weight: 300;
+            color: #1a365d;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* コントロールボタン */
+        .control-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 80px;
+            outline: none;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary {
+            background-color: #3182ce;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background-color: #2c5282;
+        }
+        
+        .btn-secondary {
+            background-color: #e2e8f0;
+            color: #2d3748;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #cbd5e0;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* データ表示エリア（40%） */
+        .data-display {
+            width: 40%;
+            background-color: #1a365d;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow: hidden;
+        }
+        
+        .data-display h3 {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+        
+        .lap-times, .history {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .data-list {
+            list-style: none;
+            overflow-y: auto;
+            flex: 1;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+        }
+        
+        .data-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .data-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .data-list::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+        
+        .data-list li {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+            font-size: 14px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .data-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .lap-number, .history-date {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        /* レスポンシブ対応 */
+        @media (max-width: 600px) {
+            .stopwatch-container {
+                flex-direction: column;
+                height: auto;
+                min-height: 400px;
+            }
+            
+            .main-display, .data-display {
+                width: 100%;
+            }
+            
+            .main-display {
+                padding: 20px;
+            }
+            
+            #time {
+                font-size: 36px;
+            }
+            
+            .btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stopwatch-container">
+        <!-- メイン表示エリア（60%） -->
+        <div class="main-display">
+            <!-- 時間表示 -->
+            <div class="time-display">
+                <span id="time">00:00.00</span>
+            </div>
+            
+            <!-- 操作ボタン -->
+            <div class="control-buttons">
+                <button id="startStopBtn" class="btn btn-primary">Start</button>
+                <button id="lapBtn" class="btn btn-secondary" disabled>Lap</button>
+                <button id="resetBtn" class="btn btn-secondary">Reset</button>
+            </div>
+        </div>
+        
+        <!-- データ表示エリア（40%） -->
+        <div class="data-display">
+            <!-- ラップタイム表示 -->
+            <div class="lap-times">
+                <h3>Lap Times</h3>
+                <ul id="lapList" class="data-list">
+                    <!-- ラップタイムがここに追加される -->
+                </ul>
+            </div>
+            
+            <!-- 計測履歴表示 -->
+            <div class="history">
+                <h3>History</h3>
+                <ul id="historyList" class="data-list">
+                    <!-- 計測履歴がここに追加される -->
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ストップウォッチの状態管理
+        let startTime = 0;
+        let elapsedTime = 0;
+        let timerId = null;
+        let isRunning = false;
+        
+        // DOM要素の取得
+        const timeDisplay = document.getElementById('time');
+        const startStopBtn = document.getElementById('startStopBtn');
+        const lapBtn = document.getElementById('lapBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const lapList = document.getElementById('lapList');
+        const historyList = document.getElementById('historyList');
+        
+        // ラップタイムと履歴の管理
+        let lapTimes = [];
+        let history = [];
+        
+        // 時間を MM:SS.mm 形式にフォーマット
+        function formatTime(milliseconds) {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const ms = Math.floor((milliseconds % 1000) / 10);
+            
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+        }
+        
+        // 時間表示を更新
+        function updateDisplay() {
+            timeDisplay.textContent = formatTime(elapsedTime);
+        }
+        
+        // タイマーを開始
+        function start() {
+            startTime = Date.now() - elapsedTime;
+            timerId = setInterval(() => {
+                elapsedTime = Date.now() - startTime;
+                updateDisplay();
+            }, 10); // 10ms精度
+            
+            isRunning = true;
+            startStopBtn.textContent = 'Stop';
+            startStopBtn.classList.remove('btn-primary');
+            startStopBtn.classList.add('btn-secondary');
+            lapBtn.disabled = false;
+            resetBtn.disabled = true;
+        }
+        
+        // タイマーを停止
+        function stop() {
+            clearInterval(timerId);
+            isRunning = false;
+            startStopBtn.textContent = 'Start';
+            startStopBtn.classList.remove('btn-secondary');
+            startStopBtn.classList.add('btn-primary');
+            lapBtn.disabled = true;
+            resetBtn.disabled = false;
+        }
+        
+        // タイマーをリセット
+        function reset() {
+            if (elapsedTime > 0) {
+                // 履歴に追加（計測完了時）
+                addToHistory(elapsedTime, lapTimes.length);
+            }
+            
+            elapsedTime = 0;
+            lapTimes = [];
+            updateDisplay();
+            updateLapDisplay();
+            resetBtn.disabled = false;
+            lapBtn.disabled = true;
+        }
+        
+        // ラップタイムを記録
+        function recordLap() {
+            if (isRunning) {
+                lapTimes.push(elapsedTime);
+                updateLapDisplay();
+            }
+        }
+        
+        // ラップタイム表示を更新
+        function updateLapDisplay() {
+            lapList.innerHTML = '';
+            const displayLaps = lapTimes.slice(-5).reverse(); // 最新5件を逆順で表示
+            
+            displayLaps.forEach((time, index) => {
+                const lapNumber = lapTimes.length - index;
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="lap-number">Lap ${lapNumber}</span>
+                    <span>${formatTime(time)}</span>
+                `;
+                lapList.appendChild(li);
+            });
+        }
+        
+        // 履歴に追加
+        function addToHistory(time, lapCount) {
+            const historyItem = {
+                time: time,
+                lapCount: lapCount,
+                timestamp: new Date()
+            };
+            
+            history.push(historyItem);
+            updateHistoryDisplay();
+        }
+        
+        // 履歴表示を更新
+        function updateHistoryDisplay() {
+            historyList.innerHTML = '';
+            const displayHistory = history.slice(-5).reverse(); // 最新5件を逆順で表示
+            
+            displayHistory.forEach((item) => {
+                const li = document.createElement('li');
+                const timeStr = formatTime(item.time);
+                const lapInfo = item.lapCount > 0 ? ` (${item.lapCount} laps)` : '';
+                li.innerHTML = `
+                    <span>${timeStr}${lapInfo}</span>
+                `;
+                historyList.appendChild(li);
+            });
+        }
+        
+        // イベントリスナーの設定
+        startStopBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stop();
+            } else {
+                start();
+            }
+        });
+        
+        lapBtn.addEventListener('click', recordLap);
+        
+        resetBtn.addEventListener('click', () => {
+            if (!isRunning) {
+                reset();
+            }
+        });
+        
+        // 初期化
+        updateDisplay();
+    </script>
+</body>
+</html>
