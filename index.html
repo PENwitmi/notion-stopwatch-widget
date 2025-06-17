@@ -52,6 +52,21 @@
             justify-content: center;
             align-items: center;
             background: linear-gradient(135deg, #f7fafc 0%, #e2e8f0 100%);
+            position: relative;
+        }
+        
+        /* タイトル - モバイルファースト */
+        h1 {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a365d;
+            margin: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
         
         /* 時間表示 */
@@ -272,6 +287,12 @@
             .data-display h3 {
                 font-size: 14px;
             }
+            
+            /* タイトルのデスクトップサイズ */
+            h1 {
+                font-size: 20px;
+                top: 25px;
+            }
         }
         
         /* タッチ操作最適化（Phase 2） */
@@ -361,6 +382,11 @@
                 margin-bottom: 24px;
             }
             
+            h1 {
+                font-size: 16px;
+                top: 18px;
+            }
+            
             .data-list {
                 font-size: 15px;
             }
@@ -394,6 +420,11 @@
                 margin-bottom: 20px;
             }
             
+            h1 {
+                font-size: 14px;
+                top: 16px;
+            }
+            
             .control-buttons {
                 max-width: 260px;
             }
@@ -408,6 +439,11 @@
         }
         
         /* Notion縮小環境用強制調整 */
+        .notion-shrunk h1 {
+            font-size: 26px !important;  /* 1.4倍補正 */
+            top: 15px !important;
+        }
+        
         .notion-shrunk #time {
             font-size: 72px !important;  /* 1.5倍補正 */
             line-height: 0.9 !important;
@@ -463,6 +499,7 @@
     <div class="stopwatch-container">
         <!-- メイン表示エリア（60%） -->
         <div class="main-display">
+            <h1>Stopwatch</h1>
             <!-- 時間表示 -->
             <div class="time-display">
                 <span id="time">00:00.00</span>
