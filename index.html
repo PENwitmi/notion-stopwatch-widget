@@ -22,7 +22,10 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
+            margin: 0;
+            width: 100%;
+            overflow-x: hidden;
         }
         
         /* メインコンテナ - モバイルファーストアプローチ */
@@ -36,6 +39,7 @@
             flex-direction: column;
             overflow: hidden;
             min-height: 520px;
+            margin: 0 auto;
         }
         
         /* メイン表示エリア - モバイルファースト */
@@ -589,6 +593,52 @@
         
         // 初期化
         updateDisplay();
+        
+        // レスポンシブレイアウト対応（Notion埋め込み対策）
+        function checkViewportWidth() {
+            const viewportWidth = window.innerWidth;
+            const container = document.querySelector('.stopwatch-container');
+            
+            // 実際の表示幅が650px未満の場合は強制的にモバイルレイアウトを適用
+            if (viewportWidth < 650) {
+                container.style.flexDirection = 'column';
+                container.style.height = 'auto';
+                container.style.minHeight = '520px';
+                
+                const mainDisplay = document.querySelector('.main-display');
+                const dataDisplay = document.querySelector('.data-display');
+                
+                mainDisplay.style.width = '100%';
+                mainDisplay.style.height = '300px';
+                dataDisplay.style.width = '100%';
+                dataDisplay.style.height = '220px';
+                
+                const controlButtons = document.querySelector('.control-buttons');
+                controlButtons.style.display = 'grid';
+                controlButtons.style.gridTemplateColumns = '2fr 1fr';
+                controlButtons.style.gridTemplateRows = '1fr 1fr';
+                controlButtons.style.maxWidth = '280px';
+                controlButtons.style.height = '124px';
+            }
+        }
+        
+        // 初期チェック
+        checkViewportWidth();
+        
+        // リサイズ時の再チェック
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(checkViewportWidth, 100);
+        });
+        
+        // Notion埋め込み検出（iframeで実行されている場合）
+        if (window.self !== window.top) {
+            // iframe内で実行されている場合の追加対策
+            document.body.style.margin = '0';
+            document.body.style.padding = '5px';
+            checkViewportWidth();
+        }
     </script>
 </body>
 </html>
